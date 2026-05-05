@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 101.6 25.4" width="101.6" height="25.4">
+  <!-- Header body -->
+  <rect x="3" y="8" width="95.6" height="9.4" rx="1.5" fill="#222" stroke="#444" stroke-width="0.5"/>
+  <!-- Pin 1 marker (triangle) -->
+  <polygon points="3,8 8,8 3,13" fill="#888"/>
+  <!-- Pin housings -->
+  <rect x="5.2" y="9.5" width="6" height="6.4" rx="0.5" fill="#333" stroke="#555" stroke-width="0.3"/>
+  <rect x="30.6" y="9.5" width="6" height="6.4" rx="0.5" fill="#333" stroke="#555" stroke-width="0.3"/>
+  <rect x="56" y="9.5" width="6" height="6.4" rx="0.5" fill="#333" stroke="#555" stroke-width="0.3"/>
+  <rect x="81.4" y="9.5" width="6" height="6.4" rx="0.5" fill="#333" stroke="#555" stroke-width="0.3"/>
+  <!-- Copper pads -->
+  <circle cx="8.2" cy="12.7" r="2.2" fill="#c8a000" stroke="#7a6000" stroke-width="0.5"/>
+  <circle cx="8.2" cy="12.7" r="0.8" fill="#333"/>
+  <circle cx="33.6" cy="12.7" r="2.2" fill="#c8a000" stroke="#7a6000" stroke-width="0.5"/>
+  <circle cx="33.6" cy="12.7" r="0.8" fill="#333"/>
+  <circle cx="59" cy="12.7" r="2.2" fill="#c8a000" stroke="#7a6000" stroke-width="0.5"/>
+  <circle cx="59" cy="12.7" r="0.8" fill="#333"/>
+  <circle cx="84.4" cy="12.7" r="2.2" fill="#c8a000" stroke="#7a6000" stroke-width="0.5"/>
+  <circle cx="84.4" cy="12.7" r="0.8" fill="#333"/>
+</svg>

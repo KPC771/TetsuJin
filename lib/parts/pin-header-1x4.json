@@ -1,0 +1,30 @@
+{
+  "id": "pin-header-1x4",
+  "name": "ピンヘッダ 1×4",
+  "category": "connector",
+  "description": "2.54mmピッチ ピンヘッダ 1行4ピン",
+  "version": "1.0.0",
+  "grid": {
+    "pitch": 2.54,
+    "unit": "mm",
+    "cols": 4,
+    "rows": 1
+  },
+  "svg": {
+    "file": "pin-header-1x4.svg",
+    "viewGridCols": 4,
+    "viewGridRows": 1,
+    "pxPerGrid": 25.4
+  },
+  "pins": [
+    { "id": "1", "name": "1", "gridX": 0, "gridY": 0, "type": "passive" },
+    { "id": "2", "name": "2", "gridX": 1, "gridY": 0, "type": "passive" },
+    { "id": "3", "name": "3", "gridX": 2, "gridY": 0, "type": "passive" },
+    { "id": "4", "name": "4", "gridX": 3, "gridY": 0, "type": "passive" }
+  ],
+  "netlist": {
+    "compatible": ["through-hole"],
+    "footprint": "PinHeader_1x04_P2.54mm_Vertical"
+  },
+  "tags": ["connector", "pin-header", "through-hole", "2.54mm"]
+}

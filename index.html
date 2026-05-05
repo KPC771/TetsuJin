@@ -1,0 +1,948 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PCB Layout Tool</title>
+<style>
+  :root {
+    --bg: #0e1117;
+    --bg2: #161b25;
+    --bg3: #1e2533;
+    --panel: #1a2030;
+    --border: #2a3550;
+    --accent: #3d7fff;
+    --accent2: #00c896;
+    --warn: #ffaa00;
+    --danger: #ff4455;
+    --text: #c8d8f0;
+    --text2: #7a90b0;
+    --text3: #4a5870;
+    --grid-color: rgba(61,127,255,0.18);
+    --hole-fill: #1a2530;
+    --copper: #c8a000;
+    --copper2: #8a6800;
+    --board-bg: #1e3d1e;
+    --board-border: #2a5a2a;
+    --selected: rgba(61,127,255,0.35);
+    --hover: rgba(61,127,255,0.15);
+    --font-mono: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
+    --font-ui: 'IBM Plex Sans JP', 'Noto Sans JP', system-ui, sans-serif;
+    --radius: 6px;
+    --radius-sm: 3px;
+    --shadow: 0 4px 20px rgba(0,0,0,0.5);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-ui);
+    font-size: 13px;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    user-select: none;
+  }
+
+  /* ── Topbar ──────────────────────────────── */
+  #topbar {
+    height: 44px;
+    background: var(--bg2);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 1px;
+    padding: 0 8px;
+    flex-shrink: 0;
+  }
+
+  .logo {
+    font-family: var(--font-mono);
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--accent);
+    letter-spacing: 0.02em;
+    margin-right: 16px;
+    white-space: nowrap;
+  }
+  .logo span { color: var(--accent2); }
+
+  .sep { width: 1px; height: 20px; background: var(--border); margin: 0 6px; }
+
+  .btn {
+    padding: 5px 10px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text2);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    font-size: 12px;
+    font-family: var(--font-ui);
+    transition: all 0.12s;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    white-space: nowrap;
+  }
+  .btn:hover { background: var(--bg3); color: var(--text); border-color: var(--accent); }
+  .btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .btn.primary:hover { background: #5590ff; }
+  .btn:disabled { opacity: 0.35; cursor: not-allowed; }
+  .btn svg { flex-shrink: 0; }
+
+  .tool-group { display: flex; gap: 2px; }
+
+  #coord-display {
+    margin-left: auto;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text3);
+    min-width: 120px;
+    text-align: right;
+  }
+
+  /* ── Layout ──────────────────────────────── */
+  #layout {
+    flex: 1;
+    display: flex;
+    overflow: hidden;
+  }
+
+  /* ── Left panel: Parts library ────────────── */
+  #panel-left {
+    width: 200px;
+    background: var(--panel);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    overflow: hidden;
+  }
+
+  .panel-header {
+    padding: 10px 12px 8px;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text3);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-shrink: 0;
+  }
+
+  #parts-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 6px;
+  }
+  #parts-list::-webkit-scrollbar { width: 4px; }
+  #parts-list::-webkit-scrollbar-track { background: transparent; }
+  #parts-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+  .part-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 8px;
+    border-radius: var(--radius-sm);
+    cursor: grab;
+    border: 1px solid transparent;
+    transition: all 0.1s;
+    margin-bottom: 2px;
+  }
+  .part-item:hover { background: var(--hover); border-color: var(--border); }
+  .part-item.dragging { opacity: 0.5; cursor: grabbing; }
+  .part-item:active { cursor: grabbing; }
+
+  .part-thumb {
+    width: 36px;
+    height: 28px;
+    background: var(--bg3);
+    border-radius: 3px;
+    border: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    overflow: hidden;
+  }
+  .part-thumb svg, .part-thumb img {
+    max-width: 34px;
+    max-height: 26px;
+  }
+
+  .part-info { min-width: 0; }
+  .part-name { font-size: 12px; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .part-cat  { font-size: 10px; color: var(--text3); margin-top: 1px; }
+
+  #add-part-btn {
+    margin: 6px;
+    padding: 7px;
+    background: var(--bg3);
+    border: 1px dashed var(--border);
+    color: var(--text3);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    text-align: center;
+    font-size: 11px;
+    transition: all 0.1s;
+    flex-shrink: 0;
+  }
+  #add-part-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* ── Canvas area ─────────────────────────── */
+  #canvas-wrap {
+    flex: 1;
+    overflow: hidden;
+    position: relative;
+    background: var(--bg);
+    background-image:
+      radial-gradient(circle at 1px 1px, rgba(61,127,255,0.04) 1px, transparent 0);
+    background-size: 20px 20px;
+    cursor: default;
+  }
+
+  #canvas-scroll {
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+    position: relative;
+  }
+  #canvas-scroll::-webkit-scrollbar { width: 8px; height: 8px; }
+  #canvas-scroll::-webkit-scrollbar-track { background: var(--bg2); }
+  #canvas-scroll::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+  #board-container {
+    position: relative;
+    display: inline-block;
+    margin: 40px;
+  }
+
+  #board-svg {
+    display: block;
+    border-radius: 4px;
+    box-shadow: var(--shadow), 0 0 0 1px var(--board-border);
+    cursor: crosshair;
+  }
+
+  /* Ghost part (during drag) */
+  #drag-ghost {
+    position: fixed;
+    pointer-events: none;
+    opacity: 0.75;
+    z-index: 1000;
+    transform: translate(-50%, -50%);
+    display: none;
+  }
+
+  /* ── Right panel: Properties ──────────────── */
+  #panel-right {
+    width: 200px;
+    background: var(--panel);
+    border-left: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    overflow: hidden;
+  }
+
+  #props-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 10px;
+  }
+
+  .prop-row {
+    margin-bottom: 10px;
+  }
+  .prop-label {
+    font-size: 10px;
+    color: var(--text3);
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    margin-bottom: 4px;
+  }
+  .prop-value {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--text);
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 5px 8px;
+    width: 100%;
+  }
+  .prop-value:focus { outline: none; border-color: var(--accent); }
+
+  .pin-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 11px;
+    margin-top: 4px;
+  }
+  .pin-table th {
+    font-size: 9px;
+    color: var(--text3);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 2px 4px;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+  }
+  .pin-table td {
+    padding: 3px 4px;
+    font-family: var(--font-mono);
+    color: var(--text2);
+    border-bottom: 1px solid rgba(42,53,80,0.5);
+  }
+  .pin-table tr:last-child td { border-bottom: none; }
+
+  .no-selection {
+    color: var(--text3);
+    font-size: 12px;
+    text-align: center;
+    margin-top: 40px;
+    line-height: 1.7;
+  }
+
+  .action-btn {
+    width: 100%;
+    padding: 7px 10px;
+    margin-bottom: 4px;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    color: var(--text2);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    font-size: 12px;
+    font-family: var(--font-ui);
+    text-align: left;
+    transition: all 0.1s;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .action-btn:hover { background: var(--bg); color: var(--text); border-color: var(--accent); }
+  .action-btn.danger:hover { border-color: var(--danger); color: var(--danger); }
+
+  /* ── Status bar ──────────────────────────── */
+  #statusbar {
+    height: 24px;
+    background: var(--bg2);
+    border-top: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    padding: 0 12px;
+    gap: 16px;
+    flex-shrink: 0;
+  }
+  .status-item {
+    font-size: 11px;
+    color: var(--text3);
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+  .status-item span { color: var(--text2); font-family: var(--font-mono); }
+
+  /* ── Board SVG internals ─────────────────── */
+  .grid-line { stroke: var(--grid-color); stroke-width: 0.5; }
+  .grid-hole-ring { fill: var(--copper); stroke: var(--copper2); stroke-width: 0.3; }
+  .grid-hole-center { fill: #111; }
+  .placement-group { cursor: pointer; }
+  .placement-group:hover .placement-outline { stroke: var(--accent); stroke-opacity: 0.6; }
+  .placement-outline { fill: none; stroke: transparent; stroke-width: 1; }
+  .placement-outline.selected { stroke: var(--accent); stroke-opacity: 1; stroke-dasharray: 3 2; }
+  .placement-label { font-size: 7px; fill: var(--accent2); font-family: monospace; }
+
+  /* ── Hidden file inputs ───────────────────── */
+  #file-inputs { display: none; }
+
+  /* ── Toast ───────────────────────────────── */
+  #toast {
+    position: fixed;
+    bottom: 32px;
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 8px 16px;
+    border-radius: var(--radius);
+    font-size: 12px;
+    opacity: 0;
+    transition: all 0.2s;
+    pointer-events: none;
+    white-space: nowrap;
+    z-index: 9999;
+  }
+  #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+</style>
+</head>
+<body>
+
+<!-- Top toolbar -->
+<div id="topbar">
+  <div class="logo">PCB<span>Layout</span></div>
+  <div class="sep"></div>
+  <div class="tool-group">
+    <button class="btn" id="btn-new" title="新規プロジェクト">
+      <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><rect x="1.5" y="1.5" width="9" height="9" rx="1" stroke="currentColor" stroke-width="1.2"/><line x1="6" y1="3.5" x2="6" y2="8.5" stroke="currentColor" stroke-width="1.2"/><line x1="3.5" y1="6" x2="8.5" y2="6" stroke="currentColor" stroke-width="1.2"/></svg>
+      新規
+    </button>
+    <button class="btn" id="btn-open" title="プロジェクトを開く">
+      <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M1.5 3.5h4l1 1.5h4v5.5h-9z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg>
+      開く
+    </button>
+    <button class="btn primary" id="btn-save" title="保存 (Ctrl+S)">
+      <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><rect x="1.5" y="1.5" width="9" height="9" rx="1" stroke="currentColor" stroke-width="1.2"/><rect x="3.5" y="1.5" width="5" height="3" rx="0.5" fill="currentColor" opacity="0.5"/><rect x="3" y="7" width="6" height="3" rx="0.5" fill="currentColor" opacity="0.5"/></svg>
+      保存
+    </button>
+  </div>
+  <div class="sep"></div>
+  <div class="tool-group">
+    <button class="btn" id="btn-undo" title="元に戻す (Ctrl+Z)" disabled>
+      <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 6.5C2 4 4 2 6.5 2c2.5 0 4.5 2 4.5 4.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/><polyline points="1,4.5 2,6.5 4,5.5" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg>
+      Undo
+    </button>
+    <button class="btn" id="btn-redo" title="やり直す (Ctrl+Y)" disabled>
+      <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M10 6.5C10 4 8 2 5.5 2 3 2 1 4 1 6.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/><polyline points="11,4.5 10,6.5 8,5.5" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg>
+      Redo
+    </button>
+  </div>
+  <div class="sep"></div>
+  <button class="btn" id="btn-editor" title="ライブラリエディタを開く">
+    <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M8 2l2 2-6 6H2V8z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg>
+    エディタ
+  </button>
+  <div id="coord-display">—</div>
+</div>
+
+<!-- Main layout -->
+<div id="layout">
+
+  <!-- Left: Parts panel -->
+  <div id="panel-left">
+    <div class="panel-header">
+      部品ライブラリ
+      <span id="parts-count" style="font-size:9px;font-family:var(--font-mono)">0</span>
+    </div>
+    <div id="parts-list">
+      <div style="color:var(--text3);font-size:11px;text-align:center;margin-top:20px">読み込み中…</div>
+    </div>
+    <div id="add-part-btn">＋ 部品を追加</div>
+  </div>
+
+  <!-- Center: Canvas -->
+  <div id="canvas-wrap">
+    <div id="canvas-scroll">
+      <div id="board-container">
+        <svg id="board-svg"></svg>
+      </div>
+    </div>
+  </div>
+
+  <!-- Right: Properties -->
+  <div id="panel-right">
+    <div class="panel-header">プロパティ</div>
+    <div id="props-content">
+      <div class="no-selection">部品を選択すると<br>プロパティが<br>表示されます</div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Status bar -->
+<div id="statusbar">
+  <div class="status-item">基板: <span id="status-board">—</span></div>
+  <div class="status-item">部品: <span id="status-parts">0</span></div>
+  <div class="status-item">選択: <span id="status-sel">なし</span></div>
+</div>
+
+<!-- Drag ghost -->
+<div id="drag-ghost"></div>
+
+<!-- Toast -->
+<div id="toast"></div>
+
+<!-- Hidden file inputs -->
+<div id="file-inputs">
+  <input type="file" id="input-open-project" accept=".pcblayout.json,.json">
+  <input type="file" id="input-add-part-json" accept=".json">
+  <input type="file" id="input-add-part-svg" accept=".svg">
+</div>
+
+<script type="module">
+import { LibraryLoader } from './js/lib-loader.js';
+import { GridEngine }    from './js/grid.js';
+import { ProjectState }  from './js/project-state.js';
+
+// ─── App state ────────────────────────────────────────────────
+const loader = new LibraryLoader();
+const state  = new ProjectState();
+let grid     = null;
+let allParts = [];
+let boardDef = null;
+let selectedId = null;
+let pendingUserJson = null; // 部品追加フロー中の一時保存
+
+// ─── Helpers ──────────────────────────────────────────────────
+function toast(msg, ms = 2000) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(el._t);
+  el._t = setTimeout(() => el.classList.remove('show'), ms);
+}
+
+function updateUndoRedo() {
+  document.getElementById('btn-undo').disabled = !state.canUndo;
+  document.getElementById('btn-redo').disabled = !state.canRedo;
+}
+
+// ─── Board rendering ──────────────────────────────────────────
+async function initBoard(def) {
+  boardDef = def;
+  grid = new GridEngine(def);
+  state.setBoard(def);
+
+  const { width, height } = grid.getBoardPixelSize();
+  const svg = document.getElementById('board-svg');
+  svg.setAttribute('width', width);
+  svg.setAttribute('height', height);
+  svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
+
+  renderBoardBase();
+  document.getElementById('status-board').textContent = def.name;
+}
+
+function renderBoardBase() {
+  const svg = document.getElementById('board-svg');
+  const { width, height } = grid.getBoardPixelSize();
+  const p = grid.pitchPx;
+
+  let html = `
+    <rect width="${width}" height="${height}" rx="3" fill="${getCSS('--board-bg')}"/>
+  `;
+
+  // Grid holes
+  for (let gy = 0; gy < grid.rows; gy++) {
+    for (let gx = 0; gx < grid.cols; gx++) {
+      const cx = (gx + 0.5) * p;
+      const cy = (gy + 0.5) * p;
+      html += `<circle cx="${cx}" cy="${cy}" r="${p*0.32}" class="grid-hole-ring"/>`;
+      html += `<circle cx="${cx}" cy="${cy}" r="${p*0.12}" class="grid-hole-center"/>`;
+    }
+  }
+
+  // Border
+  html += `<rect width="${width}" height="${height}" rx="3" fill="none"
+    stroke="${getCSS('--board-border')}" stroke-width="1"/>`;
+
+  // Placements group (populated by renderPlacements)
+  html += `<g id="placements-layer"></g>`;
+
+  svg.innerHTML = html;
+  attachBoardEvents();
+}
+
+function getCSS(v) {
+  return getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+}
+
+// ─── Placements rendering ─────────────────────────────────────
+async function renderPlacements() {
+  const layer = document.getElementById('placements-layer');
+  if (!layer) return;
+
+  let html = '';
+  for (const p of state.placements) {
+    const svgText = await loader.loadPartSVG(p.partDef);
+    const pxG = grid.pitchPx;
+    const { cols, rows } = grid.getPartGridSize(p.partDef, p.rotation);
+    const ox = p.gx * pxG;
+    const oy = p.gy * pxG;
+    const pw = cols * pxG;
+    const ph = rows * pxG;
+
+    // Rotation transform around part center
+    const cx = ox + pw / 2;
+    const cy = oy + ph / 2;
+    const rotTransform = p.rotation
+      ? `rotate(${p.rotation},${cx},${cy})`
+      : '';
+
+    const svgInner = extractSVGContent(svgText, pw, ph);
+    const isSelected = p.id === selectedId;
+
+    html += `
+      <g class="placement-group" data-id="${p.id}" transform="${rotTransform ? `rotate(${p.rotation},${cx},${cy})` : ''}">
+        <g transform="translate(${ox},${oy})">
+          <svg x="0" y="0" width="${pw}" height="${ph}" viewBox="${getSVGViewBox(svgText)}"
+               overflow="visible">${svgInner}</svg>
+          <rect x="0" y="0" width="${pw}" height="${ph}"
+            class="placement-outline ${isSelected ? 'selected' : ''}"/>
+          ${p.label ? `<text x="${pw/2}" y="-3" class="placement-label" text-anchor="middle">${escHtml(p.label)}</text>` : ''}
+        </g>
+      </g>`;
+  }
+  layer.innerHTML = html;
+  attachPlacementEvents();
+  document.getElementById('status-parts').textContent = state.placements.length;
+}
+
+function extractSVGContent(svgText, targetW, targetH) {
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(svgText, 'image/svg+xml');
+  const svgEl = doc.querySelector('svg');
+  if (!svgEl) return svgText;
+  return svgEl.innerHTML;
+}
+
+function getSVGViewBox(svgText) {
+  const m = svgText.match(/viewBox="([^"]+)"/);
+  return m ? m[1] : '0 0 100 100';
+}
+
+function escHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ─── Event: Board click/hover ──────────────────────────────────
+function attachBoardEvents() {
+  const svg = document.getElementById('board-svg');
+
+  svg.addEventListener('mousemove', e => {
+    if (!grid) return;
+    const { gx, gy } = screenToGrid(e);
+    document.getElementById('coord-display').textContent = `G(${gx},${gy})`;
+  });
+
+  svg.addEventListener('mouseleave', () => {
+    document.getElementById('coord-display').textContent = '—';
+  });
+
+  svg.addEventListener('click', e => {
+    // Click on empty board = deselect
+    if (e.target === svg || e.target.tagName === 'rect' && !e.target.closest('.placement-group')) {
+      selectPlacement(null);
+    }
+  });
+
+  // Drop target
+  svg.addEventListener('dragover', e => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'copy';
+  });
+
+  svg.addEventListener('drop', e => {
+    e.preventDefault();
+    const partId = e.dataTransfer.getData('text/part-id');
+    if (!partId) return;
+    const partDef = allParts.find(p => p.id === partId);
+    if (!partDef || !grid) return;
+
+    const { gx, gy } = screenToGrid(e);
+    if (!grid.partFitsOnBoard(gx, gy, partDef)) {
+      toast('基板の範囲外です');
+      return;
+    }
+    state.place(partDef, gx, gy);
+  });
+}
+
+function screenToGrid(e) {
+  const svg = document.getElementById('board-svg');
+  const rect = svg.getBoundingClientRect();
+  const svgW = parseFloat(svg.getAttribute('width'));
+  const svgH = parseFloat(svg.getAttribute('height'));
+  const scaleX = svgW / rect.width;
+  const scaleY = svgH / rect.height;
+  const px = (e.clientX - rect.left) * scaleX;
+  const py = (e.clientY - rect.top)  * scaleY;
+  const { gx, gy } = grid.pixelToGrid(px, py);
+  return grid.clampGrid(gx, gy);
+}
+
+function attachPlacementEvents() {
+  document.querySelectorAll('.placement-group').forEach(el => {
+    const id = parseInt(el.dataset.id);
+
+    el.addEventListener('click', e => {
+      e.stopPropagation();
+      selectPlacement(id);
+    });
+
+    // Drag to move
+    el.addEventListener('mousedown', e => {
+      if (e.button !== 0) return;
+      e.stopPropagation();
+      selectPlacement(id);
+
+      const placement = state.placements.find(p => p.id === id);
+      if (!placement) return;
+
+      const startX = e.clientX;
+      const startY = e.clientY;
+      let moved = false;
+
+      const onMove = ev => {
+        const dx = Math.abs(ev.clientX - startX);
+        const dy = Math.abs(ev.clientY - startY);
+        if (dx + dy > 4) moved = true;
+      };
+
+      const onUp = ev => {
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup', onUp);
+        if (!moved) return;
+        const { gx, gy } = screenToGrid(ev);
+        if (grid.partFitsOnBoard(gx, gy, placement.partDef, placement.rotation)) {
+          state.move(id, gx, gy);
+        } else {
+          toast('基板の範囲外です');
+        }
+      };
+
+      document.addEventListener('mousemove', onMove);
+      document.addEventListener('mouseup', onUp);
+    });
+  });
+}
+
+// ─── Selection & Properties ───────────────────────────────────
+function selectPlacement(id) {
+  selectedId = id;
+  renderPlacements();
+  renderProps();
+  document.getElementById('status-sel').textContent = id != null ? `ID:${id}` : 'なし';
+}
+
+function renderProps() {
+  const el = document.getElementById('props-content');
+  if (selectedId == null) {
+    el.innerHTML = '<div class="no-selection">部品を選択すると<br>プロパティが<br>表示されます</div>';
+    return;
+  }
+  const p = state.placements.find(pl => pl.id === selectedId);
+  if (!p) return;
+
+  const pins = grid.getAbsolutePinPositions(p.gx, p.gy, p.partDef, p.rotation);
+  const pinsHtml = pins.map(pin =>
+    `<tr><td>${pin.id}</td><td>${pin.name}</td><td>${pin.absGx},${pin.absGy}</td></tr>`
+  ).join('');
+
+  el.innerHTML = `
+    <div class="prop-row">
+      <div class="prop-label">部品</div>
+      <div style="font-size:13px;color:var(--text)">${p.partDef.name}</div>
+      <div style="font-size:10px;color:var(--text3);margin-top:2px">${p.partDef.id}</div>
+    </div>
+    <div class="prop-row">
+      <div class="prop-label">位置 (グリッド)</div>
+      <div style="font-family:var(--font-mono);font-size:12px;color:var(--accent)">(${p.gx}, ${p.gy})</div>
+    </div>
+    <div class="prop-row">
+      <div class="prop-label">回転</div>
+      <div style="font-family:var(--font-mono);font-size:12px;color:var(--text)">${p.rotation}°</div>
+    </div>
+    <div class="prop-row">
+      <div class="prop-label">ラベル</div>
+      <input class="prop-value" id="prop-label" value="${escHtml(p.label || '')}" placeholder="R1, C1...">
+    </div>
+    <div class="prop-row">
+      <div class="prop-label">ピン配置</div>
+      <table class="pin-table">
+        <tr><th>#</th><th>名前</th><th>座標</th></tr>
+        ${pinsHtml}
+      </table>
+    </div>
+    <div style="margin-top:12px">
+      <button class="action-btn" id="prop-rotate">
+        <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M9 5.5A3.5 3.5 0 1 1 5.5 2" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/><polyline points="5.5,1 7.5,2 5.5,3" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg>
+        90° 回転
+      </button>
+      <button class="action-btn danger" id="prop-delete">
+        <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><polyline points="1,2.5 2.5,2.5 9.5,2.5" stroke="currentColor" stroke-width="1.2"/><path d="M4.5 5v3m2-3v3M2.5 2.5l.5 6.5h5l.5-6.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+        削除
+      </button>
+    </div>`;
+
+  document.getElementById('prop-label')?.addEventListener('change', e => {
+    state.setLabel(selectedId, e.target.value);
+  });
+  document.getElementById('prop-rotate')?.addEventListener('click', () => {
+    state.rotate(selectedId);
+  });
+  document.getElementById('prop-delete')?.addEventListener('click', () => {
+    state.remove(selectedId);
+    selectPlacement(null);
+  });
+}
+
+// ─── Parts panel ──────────────────────────────────────────────
+async function loadPartsPanel() {
+  allParts = await loader.loadAllBuiltinParts();
+  renderPartsPanel();
+}
+
+function renderPartsPanel() {
+  const list = document.getElementById('parts-list');
+  document.getElementById('parts-count').textContent = allParts.length;
+
+  list.innerHTML = allParts.map(part => {
+    const cat = part.category || '';
+    return `
+      <div class="part-item" draggable="true" data-part-id="${part.id}">
+        <div class="part-thumb" id="thumb-${part.id}">
+          <svg width="34" height="26" viewBox="0 0 34 26"><rect width="34" height="26" fill="transparent"/></svg>
+        </div>
+        <div class="part-info">
+          <div class="part-name">${part.name}</div>
+          <div class="part-cat">${cat}</div>
+        </div>
+      </div>`;
+  }).join('');
+
+  // Async load thumbnails
+  allParts.forEach(async part => {
+    try {
+      const svgText = await loader.loadPartSVG(part);
+      const thumb = document.getElementById(`thumb-${part.id}`);
+      if (thumb) thumb.innerHTML = svgText;
+    } catch {}
+  });
+
+  // Drag events
+  list.querySelectorAll('.part-item').forEach(el => {
+    el.addEventListener('dragstart', e => {
+      e.dataTransfer.setData('text/part-id', el.dataset.partId);
+      e.dataTransfer.effectAllowed = 'copy';
+      el.classList.add('dragging');
+    });
+    el.addEventListener('dragend', e => {
+      el.classList.remove('dragging');
+    });
+  });
+}
+
+// ─── Keyboard shortcuts ───────────────────────────────────────
+document.addEventListener('keydown', e => {
+  if (e.ctrlKey || e.metaKey) {
+    if (e.key === 'z') { e.preventDefault(); state.undo(); }
+    if (e.key === 'y') { e.preventDefault(); state.redo(); }
+    if (e.key === 's') { e.preventDefault(); saveProject(); }
+  }
+  if (e.key === 'Delete' && selectedId != null) {
+    state.remove(selectedId);
+    selectPlacement(null);
+  }
+  if (e.key === 'r' && selectedId != null) {
+    state.rotate(selectedId);
+  }
+  if (e.key === 'Escape') {
+    selectPlacement(null);
+  }
+});
+
+// ─── Project save/load ────────────────────────────────────────
+function saveProject() {
+  const json = state.toJSON();
+  const blob = new Blob([json], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'project.pcblayout.json';
+  a.click();
+  toast('プロジェクトを保存しました');
+}
+
+document.getElementById('btn-save').addEventListener('click', saveProject);
+
+document.getElementById('btn-open').addEventListener('click', () => {
+  document.getElementById('input-open-project').click();
+});
+
+document.getElementById('input-open-project').addEventListener('change', async e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const text = await file.text();
+  try {
+    state.fromJSON(text, allParts);
+    toast('プロジェクトを読み込みました');
+  } catch (err) {
+    toast('読み込み失敗: ' + err.message, 3000);
+  }
+  e.target.value = '';
+});
+
+document.getElementById('btn-new').addEventListener('click', () => {
+  if (state.placements.length > 0 && !confirm('現在のプロジェクトを破棄しますか？')) return;
+  state.placements = [];
+  state._history = [];
+  state._future = [];
+  selectPlacement(null);
+  state._emit();
+  toast('新規プロジェクト');
+});
+
+// ─── Add user part ────────────────────────────────────────────
+document.getElementById('add-part-btn').addEventListener('click', () => {
+  document.getElementById('input-add-part-json').click();
+});
+
+document.getElementById('input-add-part-json').addEventListener('change', async e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  pendingUserJson = file;
+  toast('次にSVGファイルを選択してください', 3000);
+  document.getElementById('input-add-part-svg').click();
+  e.target.value = '';
+});
+
+document.getElementById('input-add-part-svg').addEventListener('change', async e => {
+  const svgFile = e.target.files[0];
+  if (!svgFile || !pendingUserJson) return;
+  try {
+    const def = await loader.registerUserPart(pendingUserJson, svgFile);
+    allParts.push(def);
+    renderPartsPanel();
+    toast(`部品を追加しました: ${def.name}`);
+  } catch (err) {
+    toast('追加失敗: ' + err.message, 3000);
+  }
+  pendingUserJson = null;
+  e.target.value = '';
+});
+
+// ─── Library editor link ──────────────────────────────────────
+document.getElementById('btn-editor').addEventListener('click', () => {
+  window.open('editor.html', '_blank');
+});
+
+// ─── State change handler ─────────────────────────────────────
+state.onChange(() => {
+  renderPlacements();
+  updateUndoRedo();
+});
+
+// ─── Boot ─────────────────────────────────────────────────────
+async function boot() {
+  const boards = await loader.loadAllBuiltinBoards();
+  await initBoard(boards[0]);
+  await loadPartsPanel();
+  await renderPlacements();
+}
+
+boot().catch(err => {
+  console.error('Boot failed:', err);
+  toast('起動エラー: ' + err.message, 5000);
+});
+</script>
+</body>
+</html>

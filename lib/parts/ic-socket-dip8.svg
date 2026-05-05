@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 76.2 50.8" width="76.2" height="50.8">
+  <!-- Body -->
+  <rect x="6" y="3" width="64.2" height="44.8" rx="2" fill="#1a1a2e" stroke="#444" stroke-width="0.8"/>
+  <!-- Notch (pin 1 indicator) -->
+  <path d="M30 3 Q38.1 9 46.2 3" fill="none" stroke="#666" stroke-width="1"/>
+  <!-- Pin 1 dot -->
+  <circle cx="12" cy="9" r="1.5" fill="#666"/>
+  <!-- Left pins (1-4, top to bottom) -->
+  <circle cx="12.7" cy="12.7" r="2.2" fill="#c8a000" stroke="#7a6000" stroke-width="0.5"/><circle cx="12.7" cy="12.7" r="0.8" fill="#1a1a2e"/>
+  <circle cx="12.7" cy="25.4" r="2.2" fill="#c8a000" stroke="#7a6000" stroke-width="0.5"/><circle cx="12.7" cy="25.4" r="0.8" fill="#1a1a2e"/>
+  <circle cx="12.7" cy="38.1" r="2.2" fill="#c8a000" stroke="#7a6000" stroke-width="0.5"/><circle cx="12.7" cy="38.1" r="0.8" fill="#1a1a2e"/>
+  <circle cx="38.1" cy="12.7" r="2.2" fill="#c8a000" stroke="#7a6000" stroke-width="0.5"/><circle cx="38.1" cy="12.7" r="0.8" fill="#1a1a2e"/>
+  <!-- Right pins (5-8, bottom to top) -->
+  <circle cx="63.5" cy="38.1" r="2.2" fill="#c8a000" stroke="#7a6000" stroke-width="0.5"/><circle cx="63.5" cy="38.1" r="0.8" fill="#1a1a2e"/>
+  <circle cx="63.5" cy="25.4" r="2.2" fill="#c8a000" stroke="#7a6000" stroke-width="0.5"/><circle cx="63.5" cy="25.4" r="0.8" fill="#1a1a2e"/>
+  <circle cx="63.5" cy="12.7" r="2.2" fill="#c8a000" stroke="#7a6000" stroke-width="0.5"/><circle cx="63.5" cy="12.7" r="0.8" fill="#1a1a2e"/>
+  <circle cx="38.1" cy="38.1" r="2.2" fill="#c8a000" stroke="#7a6000" stroke-width="0.5"/><circle cx="38.1" cy="38.1" r="0.8" fill="#1a1a2e"/>
+  <!-- Pin number labels -->
+  <text x="18" y="16" font-size="4.5" fill="#888" font-family="monospace">1</text>
+  <text x="18" y="28.7" font-size="4.5" fill="#888" font-family="monospace">2</text>
+  <text x="18" y="41.4" font-size="4.5" fill="#888" font-family="monospace">3</text>
+  <text x="41.5" y="16" font-size="4.5" fill="#888" font-family="monospace">4</text>
+  <text x="54" y="41.4" font-size="4.5" fill="#888" font-family="monospace">5</text>
+  <text x="54" y="28.7" font-size="4.5" fill="#888" font-family="monospace">6</text>
+  <text x="54" y="16" font-size="4.5" fill="#888" font-family="monospace">7</text>
+  <text x="41.5" y="41.4" font-size="4.5" fill="#888" font-family="monospace">8</text>
+</svg>

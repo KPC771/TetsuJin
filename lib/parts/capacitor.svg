@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 25.4 25.4" width="25.4" height="25.4">
+  <!-- Body (electrolytic cap, cylindrical top view) -->
+  <circle cx="12.7" cy="12.7" r="8" fill="#3a6ea0" stroke="#1a4070" stroke-width="0.8"/>
+  <!-- Polarity stripe -->
+  <path d="M4.7 12.7 A8 8 0 0 1 12.7 4.7 L12.7 20.7 A8 8 0 0 1 4.7 12.7 Z" fill="#2a5080" opacity="0.7"/>
+  <!-- Plus mark -->
+  <text x="16" y="11" font-size="5" fill="white" font-family="monospace" font-weight="bold">+</text>
+  <!-- Pin 1 (+) -->
+  <circle cx="9.5" cy="12.7" r="2.2" fill="#c8a000" stroke="#7a6000" stroke-width="0.5"/>
+  <circle cx="9.5" cy="12.7" r="0.8" fill="#333"/>
+  <!-- Pin 2 (-) -->
+  <circle cx="16" cy="12.7" r="2.2" fill="#c8a000" stroke="#7a6000" stroke-width="0.5"/>
+  <circle cx="16" cy="12.7" r="0.8" fill="#333"/>
+</svg>

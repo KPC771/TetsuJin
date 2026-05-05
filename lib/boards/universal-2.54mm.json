@@ -1,0 +1,26 @@
+{
+  "id": "universal-2.54mm",
+  "name": "ユニバーサル基板 (2.54mm)",
+  "version": "1.0.0",
+  "author": "pcb-layout-tool",
+  "description": "標準2.54mmピッチ・ユニバーサル基板 (15×10穴)",
+  "grid": {
+    "pitch": 2.54,
+    "unit": "mm",
+    "cols": 15,
+    "rows": 10
+  },
+  "svg": {
+    "file": "universal-2.54mm.svg",
+    "widthMm": 40.64,
+    "heightMm": 27.94,
+    "pxPerMm": 10
+  },
+  "holes": {
+    "type": "through-hole",
+    "diameter": 1.0,
+    "copperRingOuter": 1.7,
+    "pattern": "grid-all"
+  },
+  "tags": ["universal", "2.54mm", "through-hole"]
+}

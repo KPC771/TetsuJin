@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 406.4 279.4" width="406.4" height="279.4">
+  <!-- Board background (FR4 green) -->
+  <rect width="406.4" height="279.4" rx="4" fill="#2d6a2d" stroke="#1a4a1a" stroke-width="1.5"/>
+  <!-- Copper rings and holes pattern: 16x11 grid, pitch=25.4px (=2.54mm at 10px/mm) -->
+  <!-- Generated programmatically via JS at runtime, this SVG is the visual shell only -->
+  <!-- Grid marks are drawn by the app; this provides board outline and color -->
+  <rect width="406.4" height="279.4" rx="4" fill="none" stroke="#3a8a3a" stroke-width="0.5" opacity="0.5"/>
+</svg>

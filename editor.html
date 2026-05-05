@@ -1,0 +1,878 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PCB Library Editor</title>
+<style>
+  :root {
+    --bg: #0e1117;
+    --bg2: #161b25;
+    --bg3: #1e2533;
+    --panel: #1a2030;
+    --border: #2a3550;
+    --accent: #3d7fff;
+    --accent2: #00c896;
+    --text: #c8d8f0;
+    --text2: #7a90b0;
+    --text3: #4a5870;
+    --grid-color: rgba(61,127,255,0.25);
+    --pin-color: #c8a000;
+    --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+    --font-ui: 'IBM Plex Sans JP', 'Noto Sans JP', system-ui, sans-serif;
+    --radius: 6px;
+    --radius-sm: 3px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-ui);
+    font-size: 13px;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    user-select: none;
+  }
+
+  #topbar {
+    height: 44px;
+    background: var(--bg2);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0 12px;
+    flex-shrink: 0;
+  }
+  .logo { font-family: var(--font-mono); font-size: 13px; font-weight: 600; color: var(--accent2); margin-right: 12px; }
+  .sep { width: 1px; height: 20px; background: var(--border); margin: 0 4px; }
+
+  .btn {
+    padding: 5px 10px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text2);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    font-size: 12px;
+    font-family: var(--font-ui);
+    transition: all 0.12s;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+  .btn:hover { background: var(--bg3); color: var(--text); border-color: var(--accent); }
+  .btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+  #layout { flex: 1; display: flex; overflow: hidden; }
+
+  /* Left: Tools + properties */
+  #panel-left {
+    width: 220px;
+    background: var(--panel);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+  }
+  #panel-left::-webkit-scrollbar { width: 4px; }
+  #panel-left::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+  .section {
+    border-bottom: 1px solid var(--border);
+    padding: 10px;
+  }
+  .section-title {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text3);
+    margin-bottom: 8px;
+  }
+
+  .tool-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 4px;
+  }
+  .tool-btn {
+    aspect-ratio: 1;
+    border: 1px solid var(--border);
+    background: var(--bg3);
+    color: var(--text2);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    font-size: 10px;
+    padding: 6px 4px;
+    transition: all 0.1s;
+  }
+  .tool-btn:hover { border-color: var(--accent); color: var(--text); background: var(--bg); }
+  .tool-btn.active { background: rgba(61,127,255,0.2); border-color: var(--accent); color: var(--accent); }
+  .tool-btn svg { flex-shrink: 0; }
+
+  .field-row { margin-bottom: 8px; }
+  .field-label { font-size: 10px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 3px; }
+  .field-input {
+    width: 100%;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--text);
+    padding: 5px 8px;
+    font-size: 12px;
+    font-family: var(--font-ui);
+  }
+  .field-input:focus { outline: none; border-color: var(--accent); }
+  .field-input[type=number] { font-family: var(--font-mono); }
+  select.field-input { cursor: pointer; }
+
+  .color-row { display: flex; align-items: center; gap: 6px; }
+  input[type=color] { width: 28px; height: 26px; border: 1px solid var(--border); border-radius: 3px; padding: 2px; background: var(--bg3); cursor: pointer; }
+
+  /* Canvas */
+  #canvas-wrap {
+    flex: 1;
+    background: var(--bg);
+    overflow: auto;
+    position: relative;
+    display: flex;
+    align-items: flex-start;
+    justify-content: flex-start;
+  }
+  #canvas-wrap::-webkit-scrollbar { width: 8px; height: 8px; }
+  #canvas-wrap::-webkit-scrollbar-track { background: var(--bg2); }
+  #canvas-wrap::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+  #draw-area {
+    margin: 40px;
+    position: relative;
+    flex-shrink: 0;
+  }
+  #draw-svg {
+    display: block;
+    background: #1a2535;
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    cursor: crosshair;
+  }
+  .grid-dot { fill: var(--grid-color); }
+  .pin-marker { fill: var(--pin-color); stroke: #7a6000; stroke-width: 0.5; cursor: pointer; }
+  .pin-center { fill: #111; }
+  .pin-highlight { fill: rgba(200,160,0,0.3); stroke: var(--pin-color); stroke-width: 0.5; stroke-dasharray: 2 1; }
+  .draw-shape { cursor: move; }
+  .draw-shape.selected { outline: 1px dashed var(--accent); }
+
+  /* Right panel: Pins */
+  #panel-right {
+    width: 220px;
+    background: var(--panel);
+    border-left: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .panel-header {
+    padding: 10px 12px 8px;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text3);
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  #pins-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 6px;
+  }
+  #pins-list::-webkit-scrollbar { width: 4px; }
+  #pins-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+  .pin-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 6px;
+    border-radius: 3px;
+    border: 1px solid transparent;
+    margin-bottom: 2px;
+    cursor: pointer;
+    transition: all 0.1s;
+  }
+  .pin-row:hover { background: rgba(61,127,255,0.1); border-color: var(--border); }
+  .pin-row.selected { background: rgba(61,127,255,0.15); border-color: var(--accent); }
+  .pin-num {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: var(--pin-color);
+    color: #111;
+    font-size: 10px;
+    font-weight: 700;
+    font-family: var(--font-mono);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .pin-details { flex: 1; min-width: 0; }
+  .pin-name-label { font-size: 12px; color: var(--text); }
+  .pin-coord { font-size: 10px; color: var(--text3); font-family: var(--font-mono); }
+  .pin-del { background: none; border: none; color: var(--text3); cursor: pointer; font-size: 14px; padding: 2px; border-radius: 2px; }
+  .pin-del:hover { color: #ff4455; }
+
+  #statusbar {
+    height: 24px;
+    background: var(--bg2);
+    border-top: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    padding: 0 12px;
+    gap: 16px;
+    flex-shrink: 0;
+  }
+  .status-item { font-size: 11px; color: var(--text3); }
+  .status-item span { color: var(--text2); font-family: var(--font-mono); }
+
+  #toast {
+    position: fixed;
+    bottom: 32px;
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 8px 16px;
+    border-radius: var(--radius);
+    font-size: 12px;
+    opacity: 0;
+    transition: all 0.2s;
+    pointer-events: none;
+    z-index: 9999;
+  }
+  #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+</style>
+</head>
+<body>
+
+<div id="topbar">
+  <div class="logo">LibEditor</div>
+  <div class="sep"></div>
+  <button class="btn" id="btn-clear">クリア</button>
+  <button class="btn" id="btn-import-svg">SVGをインポート</button>
+  <div class="sep"></div>
+  <button class="btn" id="btn-export-svg">SVGを書き出し</button>
+  <button class="btn" id="btn-export-json" style="background:var(--accent);color:#fff;border-color:var(--accent)">JSONを書き出し</button>
+</div>
+
+<div id="layout">
+
+  <!-- Left panel -->
+  <div id="panel-left">
+
+    <!-- Draw tools -->
+    <div class="section">
+      <div class="section-title">描画ツール</div>
+      <div class="tool-grid">
+        <button class="tool-btn active" data-tool="select">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 2l10 6-5 1-2 5z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg>
+          選択
+        </button>
+        <button class="tool-btn" data-tool="line">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><line x1="3" y1="13" x2="13" y2="3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+          直線
+        </button>
+        <button class="tool-btn" data-tool="rect">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="3" y="4" width="10" height="8" rx="1" stroke="currentColor" stroke-width="1.2"/></svg>
+          矩形
+        </button>
+        <button class="tool-btn" data-tool="circle">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="5" stroke="currentColor" stroke-width="1.2"/></svg>
+          円
+        </button>
+        <button class="tool-btn" data-tool="pin">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="3.5" fill="#c8a000" stroke="#7a6000" stroke-width="0.8"/><circle cx="8" cy="8" r="1.2" fill="#111"/></svg>
+          ピン
+        </button>
+        <button class="tool-btn" data-tool="text">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><text x="4" y="12" font-size="10" fill="currentColor" font-family="monospace">T</text></svg>
+          テキスト
+        </button>
+      </div>
+    </div>
+
+    <!-- Stroke style -->
+    <div class="section">
+      <div class="section-title">スタイル</div>
+      <div class="field-row">
+        <div class="field-label">線の色</div>
+        <div class="color-row">
+          <input type="color" id="stroke-color" value="#c8a000">
+          <input class="field-input" id="stroke-color-hex" value="#c8a000" style="flex:1;font-family:var(--font-mono);font-size:11px">
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field-label">塗りつぶし</div>
+        <div class="color-row">
+          <input type="color" id="fill-color" value="#1a2535">
+          <input class="field-input" id="fill-color-hex" value="none" style="flex:1;font-family:var(--font-mono);font-size:11px" placeholder="none">
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field-label">線の太さ</div>
+        <input type="number" class="field-input" id="stroke-width" value="1" min="0.1" max="10" step="0.5">
+      </div>
+    </div>
+
+    <!-- Grid settings -->
+    <div class="section">
+      <div class="section-title">グリッド設定</div>
+      <div class="field-row">
+        <div class="field-label">ピッチ (mm)</div>
+        <input type="number" class="field-input" id="grid-pitch" value="2.54" min="1" max="5" step="0.01">
+      </div>
+      <div class="field-row">
+        <div class="field-label">列数 (cols)</div>
+        <input type="number" class="field-input" id="grid-cols" value="3" min="1" max="20">
+      </div>
+      <div class="field-row">
+        <div class="field-label">行数 (rows)</div>
+        <input type="number" class="field-input" id="grid-rows" value="2" min="1" max="20">
+      </div>
+      <button class="btn" id="btn-apply-grid" style="width:100%;justify-content:center;margin-top:4px">グリッドを適用</button>
+    </div>
+
+    <!-- Part metadata -->
+    <div class="section">
+      <div class="section-title">部品情報</div>
+      <div class="field-row">
+        <div class="field-label">ID</div>
+        <input class="field-input" id="meta-id" value="my-part" placeholder="my-part">
+      </div>
+      <div class="field-row">
+        <div class="field-label">名前</div>
+        <input class="field-input" id="meta-name" value="マイ部品" placeholder="マイ部品">
+      </div>
+      <div class="field-row">
+        <div class="field-label">カテゴリ</div>
+        <select class="field-input" id="meta-category">
+          <option value="passive">passive</option>
+          <option value="ic">ic</option>
+          <option value="connector">connector</option>
+          <option value="switch">switch</option>
+          <option value="other">other</option>
+        </select>
+      </div>
+      <div class="field-row">
+        <div class="field-label">説明</div>
+        <input class="field-input" id="meta-desc" placeholder="部品の説明">
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Canvas -->
+  <div id="canvas-wrap">
+    <div id="draw-area">
+      <svg id="draw-svg"></svg>
+    </div>
+  </div>
+
+  <!-- Right: Pins -->
+  <div id="panel-right">
+    <div class="panel-header">
+      ピン定義
+      <span id="pin-count" style="font-size:9px;font-family:var(--font-mono)">0</span>
+    </div>
+    <div id="pins-list">
+      <div style="color:var(--text3);font-size:11px;text-align:center;margin-top:20px;line-height:1.7">
+        ピンツールでクリックして<br>ピンを配置します
+      </div>
+    </div>
+    <div style="padding:8px;border-top:1px solid var(--border);flex-shrink:0">
+      <div class="field-row">
+        <div class="field-label">選択ピン名</div>
+        <input class="field-input" id="selected-pin-name" placeholder="VCC, GND, D0...">
+      </div>
+      <div class="field-row">
+        <div class="field-label">ピンタイプ</div>
+        <select class="field-input" id="selected-pin-type">
+          <option value="passive">passive</option>
+          <option value="input">input</option>
+          <option value="output">output</option>
+          <option value="power">power</option>
+          <option value="ground">ground</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div id="statusbar">
+  <div class="status-item">ツール: <span id="status-tool">select</span></div>
+  <div class="status-item">グリッド: <span id="status-grid">3×2</span></div>
+  <div class="status-item">ピン数: <span id="status-pins">0</span></div>
+  <div class="status-item">座標: <span id="status-coord">—</span></div>
+</div>
+
+<input type="file" id="input-import-svg" accept=".svg" style="display:none">
+<div id="toast"></div>
+
+<script>
+// ─── Editor State ─────────────────────────────────────────────
+const PX_PER_MM = 10;
+let gridPitch = 2.54;
+let gridCols  = 3;
+let gridRows  = 2;
+let pitchPx   = gridPitch * PX_PER_MM;
+
+let currentTool = 'select';
+let shapes = [];       // { type, attrs, id }
+let pins   = [];       // { id, gx, gy, name, type }
+let nextShapeId = 1;
+let nextPinId   = 1;
+let selectedShapeId = null;
+let selectedPinId   = null;
+
+let drawing = false;
+let drawStart = null;
+let tempShape = null;
+
+// ─── Helpers ──────────────────────────────────────────────────
+function toast(msg, ms = 2000) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(el._t);
+  el._t = setTimeout(() => el.classList.remove('show'), ms);
+}
+
+function getBoardPx() {
+  return { w: gridCols * pitchPx, h: gridRows * pitchPx };
+}
+
+function snapToGrid(px, py) {
+  return {
+    gx: Math.max(0, Math.min(gridCols - 1, Math.round(px / pitchPx - 0.5))),
+    gy: Math.max(0, Math.min(gridRows - 1, Math.round(py / pitchPx - 0.5))),
+  };
+}
+
+function gridCenter(gx, gy) {
+  return {
+    cx: (gx + 0.5) * pitchPx,
+    cy: (gy + 0.5) * pitchPx,
+  };
+}
+
+function getSVGPos(e) {
+  const svg = document.getElementById('draw-svg');
+  const rect = svg.getBoundingClientRect();
+  const svgW = parseFloat(svg.getAttribute('width'));
+  const svgH = parseFloat(svg.getAttribute('height'));
+  return {
+    x: (e.clientX - rect.left) * (svgW / rect.width),
+    y: (e.clientY - rect.top)  * (svgH / rect.height),
+  };
+}
+
+// ─── Render ───────────────────────────────────────────────────
+function render() {
+  const svg = document.getElementById('draw-svg');
+  const { w, h } = getBoardPx();
+  svg.setAttribute('width', w);
+  svg.setAttribute('height', h);
+  svg.setAttribute('viewBox', `0 0 ${w} ${h}`);
+
+  let html = '';
+
+  // Grid dots
+  for (let gy = 0; gy <= gridRows; gy++) {
+    for (let gx = 0; gx <= gridCols; gx++) {
+      html += `<circle class="grid-dot" cx="${gx * pitchPx}" cy="${gy * pitchPx}" r="1"/>`;
+    }
+  }
+  // Grid lines (light)
+  for (let i = 0; i <= gridRows; i++)
+    html += `<line x1="0" y1="${i*pitchPx}" x2="${w}" y2="${i*pitchPx}" stroke="rgba(61,127,255,0.08)" stroke-width="0.5"/>`;
+  for (let i = 0; i <= gridCols; i++)
+    html += `<line x1="${i*pitchPx}" y1="0" x2="${i*pitchPx}" y2="${h}" stroke="rgba(61,127,255,0.08)" stroke-width="0.5"/>`;
+
+  // Shapes
+  shapes.forEach(s => {
+    const sel = s.id === selectedShapeId;
+    const extra = sel ? ` style="outline:1px dashed #3d7fff"` : '';
+    html += renderShape(s, extra);
+  });
+
+  // Pin highlights (grid cells)
+  pins.forEach(pin => {
+    const { cx, cy } = gridCenter(pin.gx, pin.gy);
+    html += `<rect class="pin-highlight" x="${cx - pitchPx*0.4}" y="${cy - pitchPx*0.4}"
+      width="${pitchPx*0.8}" height="${pitchPx*0.8}" rx="2"
+      data-pin-id="${pin.id}"/>`;
+  });
+
+  // Pin markers
+  pins.forEach(pin => {
+    const { cx, cy } = gridCenter(pin.gx, pin.gy);
+    const selPinStyle = pin.id === selectedPinId ? ` stroke="#3d7fff" stroke-width="1.5"` : '';
+    html += `<circle class="pin-marker" cx="${cx}" cy="${cy}" r="${pitchPx*0.28}"${selPinStyle} data-pin-id="${pin.id}"/>`;
+    html += `<circle class="pin-center" cx="${cx}" cy="${cy}" r="${pitchPx*0.1}" data-pin-id="${pin.id}"/>`;
+    html += `<text x="${cx+pitchPx*0.35}" y="${cy+pitchPx*0.15}"
+      font-size="${pitchPx*0.22}" fill="#c8a000" font-family="monospace"
+      pointer-events="none">${escHtml(pin.name || String(pin.id))}</text>`;
+  });
+
+  // Temp shape (in-progress drawing)
+  if (tempShape) html += renderShape(tempShape, '');
+
+  svg.innerHTML = html;
+  attachCanvasEvents();
+  renderPinList();
+  document.getElementById('status-grid').textContent = `${gridCols}×${gridRows}`;
+  document.getElementById('status-pins').textContent = pins.length;
+  document.getElementById('pin-count').textContent = pins.length;
+}
+
+function renderShape(s, extra) {
+  const { type, attrs, id } = s;
+  const stroke = attrs.stroke || '#c8a000';
+  const fill   = attrs.fill   || 'none';
+  const sw     = attrs.strokeWidth || 1;
+  const base   = `stroke="${stroke}" fill="${fill}" stroke-width="${sw}"`;
+  switch (type) {
+    case 'line':
+      return `<line x1="${attrs.x1}" y1="${attrs.y1}" x2="${attrs.x2}" y2="${attrs.y2}" ${base} stroke-linecap="round" data-shape-id="${id}"${extra}/>`;
+    case 'rect':
+      return `<rect x="${attrs.x}" y="${attrs.y}" width="${attrs.w}" height="${attrs.h}" rx="${attrs.rx||0}" ${base} data-shape-id="${id}"${extra}/>`;
+    case 'circle':
+      return `<circle cx="${attrs.cx}" cy="${attrs.cy}" r="${attrs.r}" ${base} data-shape-id="${id}"${extra}/>`;
+    case 'text':
+      return `<text x="${attrs.x}" y="${attrs.y}" font-size="${attrs.fontSize||8}" fill="${stroke}" font-family="monospace" data-shape-id="${id}">${escHtml(attrs.text||'')}</text>`;
+    default: return '';
+  }
+}
+
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ─── Canvas events ─────────────────────────────────────────────
+function attachCanvasEvents() {
+  const svg = document.getElementById('draw-svg');
+
+  svg.addEventListener('mousemove', e => {
+    const { x, y } = getSVGPos(e);
+    const { gx, gy } = snapToGrid(x, y);
+    document.getElementById('status-coord').textContent = `G(${gx},${gy}) px(${x.toFixed(1)},${y.toFixed(1)})`;
+
+    if (drawing && drawStart && currentTool !== 'pin') {
+      updateTempShape(x, y);
+      render();
+    }
+  });
+
+  svg.addEventListener('mousedown', e => {
+    if (e.button !== 0) return;
+    const { x, y } = getSVGPos(e);
+    const { gx, gy } = snapToGrid(x, y);
+
+    if (currentTool === 'pin') {
+      placePinAt(gx, gy);
+      return;
+    }
+
+    if (currentTool === 'select') {
+      // Check pin click
+      const pinEl = e.target.closest('[data-pin-id]');
+      if (pinEl) {
+        selectPin(parseInt(pinEl.dataset.pinId));
+        return;
+      }
+      // Check shape click
+      const shapeEl = e.target.closest('[data-shape-id]');
+      if (shapeEl) {
+        selectedShapeId = parseInt(shapeEl.dataset.shapeId);
+        render();
+        return;
+      }
+      selectedShapeId = null;
+      selectedPinId = null;
+      render();
+      return;
+    }
+
+    if (currentTool === 'text') {
+      const text = prompt('テキストを入力:', '');
+      if (!text) return;
+      shapes.push({ id: nextShapeId++, type: 'text', attrs: {
+        x, y, text,
+        fontSize: 8,
+        stroke: document.getElementById('stroke-color').value,
+      }});
+      render();
+      return;
+    }
+
+    drawing = true;
+    drawStart = { x, y };
+  });
+
+  svg.addEventListener('mouseup', e => {
+    if (!drawing || !drawStart) return;
+    drawing = false;
+    const { x, y } = getSVGPos(e);
+    if (tempShape) {
+      shapes.push({ ...tempShape, id: nextShapeId++ });
+      tempShape = null;
+    }
+    drawStart = null;
+    render();
+  });
+}
+
+function updateTempShape(x, y) {
+  const { x: sx, y: sy } = drawStart;
+  const stroke = document.getElementById('stroke-color').value;
+  const fill   = document.getElementById('fill-color-hex').value || 'none';
+  const sw     = parseFloat(document.getElementById('stroke-width').value) || 1;
+
+  switch (currentTool) {
+    case 'line':
+      tempShape = { id: -1, type: 'line', attrs: { x1: sx, y1: sy, x2: x, y2: y, stroke, fill: 'none', strokeWidth: sw } };
+      break;
+    case 'rect':
+      tempShape = { id: -1, type: 'rect', attrs: {
+        x: Math.min(sx, x), y: Math.min(sy, y),
+        w: Math.abs(x - sx), h: Math.abs(y - sy),
+        stroke, fill, strokeWidth: sw
+      }};
+      break;
+    case 'circle': {
+      const r = Math.sqrt((x-sx)**2 + (y-sy)**2);
+      tempShape = { id: -1, type: 'circle', attrs: { cx: sx, cy: sy, r, stroke, fill, strokeWidth: sw } };
+      break;
+    }
+  }
+}
+
+// ─── Pin management ────────────────────────────────────────────
+function placePinAt(gx, gy) {
+  if (pins.find(p => p.gx === gx && p.gy === gy)) {
+    toast('そのグリッドにはすでにピンがあります');
+    return;
+  }
+  const pin = { id: nextPinId++, gx, gy, name: String(nextPinId - 1), type: 'passive' };
+  pins.push(pin);
+  selectPin(pin.id);
+}
+
+function selectPin(id) {
+  selectedPinId = id;
+  const pin = pins.find(p => p.id === id);
+  if (pin) {
+    document.getElementById('selected-pin-name').value = pin.name || '';
+    document.getElementById('selected-pin-type').value = pin.type || 'passive';
+  }
+  render();
+  highlightPinRow(id);
+}
+
+function highlightPinRow(id) {
+  document.querySelectorAll('.pin-row').forEach(el => {
+    el.classList.toggle('selected', parseInt(el.dataset.pinId) === id);
+  });
+}
+
+function renderPinList() {
+  const list = document.getElementById('pins-list');
+  if (pins.length === 0) {
+    list.innerHTML = `<div style="color:var(--text3);font-size:11px;text-align:center;margin-top:20px;line-height:1.7">
+      ピンツールでクリックして<br>ピンを配置します</div>`;
+    return;
+  }
+  list.innerHTML = pins.map(pin =>
+    `<div class="pin-row ${pin.id === selectedPinId ? 'selected' : ''}" data-pin-id="${pin.id}">
+      <div class="pin-num">${pin.id}</div>
+      <div class="pin-details">
+        <div class="pin-name-label">${escHtml(pin.name || '—')}</div>
+        <div class="pin-coord">G(${pin.gx},${pin.gy}) · ${pin.type}</div>
+      </div>
+      <button class="pin-del" data-del-pin="${pin.id}" title="削除">×</button>
+    </div>`
+  ).join('');
+
+  list.querySelectorAll('.pin-row').forEach(el => {
+    el.addEventListener('click', e => {
+      if (e.target.closest('[data-del-pin]')) return;
+      selectPin(parseInt(el.dataset.pinId));
+    });
+  });
+  list.querySelectorAll('[data-del-pin]').forEach(el => {
+    el.addEventListener('click', e => {
+      e.stopPropagation();
+      pins = pins.filter(p => p.id !== parseInt(el.dataset.delPin));
+      if (selectedPinId === parseInt(el.dataset.delPin)) selectedPinId = null;
+      render();
+    });
+  });
+}
+
+// Pin name/type update
+document.getElementById('selected-pin-name').addEventListener('input', e => {
+  if (selectedPinId == null) return;
+  const pin = pins.find(p => p.id === selectedPinId);
+  if (pin) { pin.name = e.target.value; render(); }
+});
+document.getElementById('selected-pin-type').addEventListener('change', e => {
+  if (selectedPinId == null) return;
+  const pin = pins.find(p => p.id === selectedPinId);
+  if (pin) { pin.type = e.target.value; render(); }
+});
+
+// ─── Tools ────────────────────────────────────────────────────
+document.querySelectorAll('.tool-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    currentTool = btn.dataset.tool;
+    document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('status-tool').textContent = currentTool;
+    document.getElementById('draw-svg').style.cursor =
+      currentTool === 'select' ? 'default' : 'crosshair';
+  });
+});
+
+// ─── Grid apply ───────────────────────────────────────────────
+document.getElementById('btn-apply-grid').addEventListener('click', () => {
+  gridPitch = parseFloat(document.getElementById('grid-pitch').value) || 2.54;
+  gridCols  = parseInt(document.getElementById('grid-cols').value)    || 3;
+  gridRows  = parseInt(document.getElementById('grid-rows').value)    || 2;
+  pitchPx   = gridPitch * PX_PER_MM;
+  // Remove pins outside new grid
+  pins = pins.filter(p => p.gx < gridCols && p.gy < gridRows);
+  render();
+  toast(`グリッド更新: ${gridCols}×${gridRows}`);
+});
+
+// Color sync
+document.getElementById('stroke-color').addEventListener('input', e => {
+  document.getElementById('stroke-color-hex').value = e.target.value;
+});
+document.getElementById('stroke-color-hex').addEventListener('input', e => {
+  if (/^#[0-9a-fA-F]{6}$/.test(e.target.value))
+    document.getElementById('stroke-color').value = e.target.value;
+});
+document.getElementById('fill-color').addEventListener('input', e => {
+  document.getElementById('fill-color-hex').value = e.target.value;
+});
+
+// ─── Clear ────────────────────────────────────────────────────
+document.getElementById('btn-clear').addEventListener('click', () => {
+  if (!confirm('すべてクリアしますか？')) return;
+  shapes = []; pins = [];
+  selectedShapeId = null; selectedPinId = null;
+  render();
+});
+
+// ─── Import SVG ───────────────────────────────────────────────
+document.getElementById('btn-import-svg').addEventListener('click', () => {
+  document.getElementById('input-import-svg').click();
+});
+document.getElementById('input-import-svg').addEventListener('change', async e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const text = await file.text();
+  // Insert SVG as a foreign shape (stored as raw SVG string for display)
+  shapes.push({ id: nextShapeId++, type: 'raw-svg', raw: text, attrs: {} });
+  render();
+  toast('SVGをインポートしました');
+  e.target.value = '';
+});
+
+// ─── Export SVG ───────────────────────────────────────────────
+document.getElementById('btn-export-svg').addEventListener('click', () => {
+  const svg = document.getElementById('draw-svg');
+  const { w, h } = getBoardPx();
+
+  // Build clean SVG without grid dots
+  let shapesSvg = shapes.map(s => renderShape(s, '')).join('\n');
+  let pinsSvg = pins.map(pin => {
+    const { cx, cy } = gridCenter(pin.gx, pin.gy);
+    return `  <circle cx="${cx}" cy="${cy}" r="${pitchPx*0.28}" fill="#c8a000" stroke="#7a6000" stroke-width="0.5"/>
+  <circle cx="${cx}" cy="${cy}" r="${pitchPx*0.1}" fill="#111"/>`;
+  }).join('\n');
+
+  const output = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${w} ${h}" width="${w}" height="${h}">
+${shapesSvg}
+${pinsSvg}
+</svg>`;
+  downloadText(output, `${document.getElementById('meta-id').value || 'part'}.svg`, 'image/svg+xml');
+  toast('SVGを書き出しました');
+});
+
+// ─── Export JSON ──────────────────────────────────────────────
+document.getElementById('btn-export-json').addEventListener('click', () => {
+  const id   = document.getElementById('meta-id').value   || 'my-part';
+  const name = document.getElementById('meta-name').value || 'マイ部品';
+  const cat  = document.getElementById('meta-category').value;
+  const desc = document.getElementById('meta-desc').value;
+
+  const def = {
+    id, name,
+    category: cat,
+    description: desc,
+    version: '1.0.0',
+    grid: {
+      pitch: gridPitch,
+      unit: 'mm',
+      cols: gridCols,
+      rows: gridRows,
+    },
+    svg: {
+      file: `${id}.svg`,
+      viewGridCols: gridCols,
+      viewGridRows: gridRows,
+      pxPerGrid: pitchPx,
+    },
+    pins: pins.map((pin, i) => ({
+      id: String(i + 1),
+      name: pin.name || String(i + 1),
+      gridX: pin.gx,
+      gridY: pin.gy,
+      type: pin.type,
+    })),
+    netlist: { compatible: [], footprint: '' },
+    tags: [id, cat],
+  };
+
+  downloadText(JSON.stringify(def, null, 2), `${id}.json`, 'application/json');
+  toast('JSONを書き出しました');
+});
+
+function downloadText(text, filename, mime) {
+  const blob = new Blob([text], { type: mime });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  a.click();
+}
+
+// ─── Boot ─────────────────────────────────────────────────────
+render();
+</script>
+</body>
+</html>
